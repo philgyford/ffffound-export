@@ -18,7 +18,7 @@
 
 
 
-import os, sys, urllib, imghdr
+import os, sys, time, urllib, imghdr
 from BeautifulSoup import BeautifulSoup
 from urlparse import urlparse
 from posixpath import basename, dirname
@@ -44,37 +44,44 @@ def main(user):
 			count = 0
 			soup = BeautifulSoup(s)
 			for i in soup.findAll("div", { "class" : "description" }):
-				images.append({"url": urlparse("http://" + str(i).split("<br />")[0].replace("<div class=\"description\">", ""))})
+				url = urlparse("http://" + str(i).split("<br />")[0].replace("<div class=\"description\">", ""))
+				images.append({
+					"url": url,
+					"filepath": user+"/"+basename(url.path),
+				})
 			for i in soup.findAll("img"):
 				if str(i).find("_m.") != -1:
 					images[count]["backup"] = str(i).split("src=\"")[1].split("\"")[0]
 					count += 1
 			for i in images:
-				if os.path.exists(user+"/"+basename(i["url"].path)):
-					print basename(i["url"].path) + " exists, stopping."
-					print
-					sys.exit()
-				else:
-					print "Downloading " + basename(i["url"].path),
-					try:
-						urllib.urlretrieve(i["url"].geturl(), user+"/"+basename(i["url"].path))
-						print "... done."
-						if not imghdr.what(user+"/"+basename(i["url"].path)) in ["gif", "jpeg", "png", None]:
-							print "... unfortunately, it seems to be a bad image.\nDownloading backup",
-							try:
-								urllib.urlretrieve(i["backup"], user+"/"+basename(i["url"].path))
-								print "... which seems to have worked."
-							except:
-								print "... which also failed."
-						if os.path.getsize(user+"/"+basename(i["url"].path)) < 5000:
-							raise
-					except:
-						print "... failed. Downloading backup",
+				if os.path.exists(i["filepath"]):
+					# Make this filepath unique.
+					parts = os.path.splitext(i["filepath"])
+					t = str(time.time()).replace(".", "")
+					new_filepath = parts[0] + "_" + t + parts[1]
+					print i["filepath"] + " exists, using " + new_filepath + "."
+					i["filepath"] = new_filepath
+
+				print "Downloading " + basename(i["url"].path),
+				try:
+					urllib.urlretrieve(i["url"].geturl(), i["filepath"])
+					print "... done."
+					if not imghdr.what(i["filepath"]) in ["gif", "jpeg", "png", None]:
+						print "... unfortunately, it seems to be a bad image.\nDownloading backup",
 						try:
-							urllib.urlretrieve(i["backup"], user+"/"+basename(i["url"].path))
+							urllib.urlretrieve(i["backup"], i["filepath"])
 							print "... which seems to have worked."
 						except:
 							print "... which also failed."
+					if os.path.getsize(i["filepath"]) < 5000:
+						raise
+				except:
+					print "... failed. Downloading backup",
+					try:
+						urllib.urlretrieve(i["backup"], i["filepath"])
+						print "... which seems to have worked."
+					except:
+						print "... which also failed."
 				print
 			page += 1
 		else:
