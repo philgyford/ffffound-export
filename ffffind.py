@@ -41,14 +41,21 @@ def main(user):
 		if "<div class=\"description\">" in s:
 			images = []
 			offset += 25
-			count = 0
 			soup = BeautifulSoup(s)
 			for i in soup.findAll("div", { "class" : "description" }):
 				url = urlparse("http://" + str(i).split("<br />")[0].replace("<div class=\"description\">", ""))
 				images.append({
 					"url": url,
 					"filepath": user+"/"+basename(url.path),
+					"save_time": str(i).split("<br />")[1][:19]
 				})
+			count = 0
+			for i in soup.findAll("div", { "class": "title" }):
+				a = i.findAll("a")[0]
+				images[count]["page_title"] = a.string
+				images[count]["page_url"] = a["href"]
+				count += 1
+			count = 0
 			for i in soup.findAll("img"):
 				if str(i).find("_m.") != -1:
 					images[count]["backup"] = str(i).split("src=\"")[1].split("\"")[0]
