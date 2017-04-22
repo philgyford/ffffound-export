@@ -80,7 +80,18 @@ Some images might not have an `image_url` and/or `page_url`, if, for example, th
 
 ## Caveats
 
-* There are some issues with encoding, that result in odd characters appearing in the generated pages. Ffffound doesn't have any content-type encoding specified and I've spent way too long trying to get this working nicely. Any suggestions welcome.
+### Encoding
+
+There are some issues with encoding that result in odd characters appearing in the generated pages. Ffffound doesn't have any content-type encoding specified when requesting pages, which doesn't help. I've spent way too long trying to get this working nicely.
+
+Any suggestions welcome. To test, do:
+
+	python ffffind.py philgyford 2
+
+Then open `page2.html` and search for "Something good". The next characters are
+"Â«" rather than just "«". Also look in `images.json`.
+
+
 * I know the code is horrible.
 
 ## Contact
