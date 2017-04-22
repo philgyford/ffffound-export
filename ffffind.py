@@ -152,7 +152,7 @@ def main(user):
 
 	# Save the data as JSON:
 	f = open(base_path+"images.json", "w")
-	f.write( json.dumps(all_images) )
+	f.write( json.dumps(all_images, indent=2) )
 	f.close()
 	
 	# Copy the CSS file over...
