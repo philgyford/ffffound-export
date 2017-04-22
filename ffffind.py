@@ -142,19 +142,27 @@ body {
 	color: #000000;
 	background-color: #ffffff;
 	font-size: 14px;
-	margin: 20px;
+	margin: 20px 40px;
 }	
+a {
+	text-decoration: none;
+}
 h1 {
 	font-size: 40px;
 	font-weight: normal;
 	margin: 0 0 1em 0;
 }
-.image {
-	width: 520px;
+
+article {
+	margin-bottom: 50px;
 }
-.image img {
-	max-width: 100%;
-	height: auto;
+h2 {
+	font-weight: normal;
+	font-size: inherit;
+	margin: 0;
+}
+.title {
+	font-size: 18px;
 }
 .quote {
 	color: #909090;
@@ -162,6 +170,14 @@ h1 {
 }
 .description {
 	color: #909090;
+	margin-bottom: 10px;
+}
+.image {
+	width: 520px;
+}
+.image img {
+	max-width: 100%;
+	height: auto;
 }
 """)
 	for page_count, chunk in enumerate(chunks(all_images, 25)):
