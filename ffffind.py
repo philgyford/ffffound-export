@@ -21,7 +21,7 @@
 
 
 
-import os, re, sys, requests, time, urllib, imghdr
+import os, re, sys, requests, time, imghdr
 from BeautifulSoup import BeautifulSoup
 from urlparse import urlparse
 from posixpath import basename, dirname
@@ -33,11 +33,13 @@ headers = {'user-agent': 'Mozilla/5.0 (Windows; U; Windows NT 5.1; it; rv:1.8.1.
 
 def main(user):
 	offset = 0
+	all_images = []
 	page = 1
 	# Where we'll save the pages. Images will be in an "images" dir in here:
 	base_path = user+"/"
-	while True:
-		images = []
+	while page <= 2:
+		page_images = []
+	# while True:
 		print "Capturing page "+str(page)+" ..."
 		print
 		r = requests.get("http://ffffound.com/home/"+user+"/found/?offset="+str(offset), headers=headers)
@@ -53,7 +55,7 @@ def main(user):
 					save_time = str(i).split("<br />")[1][:19]
 				except IndexError:
 					save_time = str(i).split("<br />")[0][:19]
-				images.append({
+				page_images.append({
 					"image_url": url.geturl(),
 					# Where we'll save the file to:
 					"filename": basename(url.path),
@@ -66,22 +68,27 @@ def main(user):
 					a = i.findAll("a")[0]
 				except IndexError:
 					# Original URL is missing.
-					images[count]["page_title"] = str(i).replace("<span class=\"quote\">Quoted from:</span>", u"")
-					images[count]["page_url"] = u""
+					page_images[count]["page_title"] = str(i)\
+							.replace("<div class=\"title\">", u"")\
+							.replace("</div>", u"")\
+							.replace("<span class=\"quote\">Quoted from:</span>", u"")
+					print 'a: '+ page_images[count]["page_title"]
+					page_images[count]["page_url"] = u""
 				else:
 					# The <title> of the original page the image was on:
-					images[count]["page_title"] = a.string
+					page_images[count]["page_title"] = a.string
+					print 'b: '+a.string
 					# The URL of the original page the image was on:
-					images[count]["page_url"] = a["href"]
+					page_images[count]["page_url"] = a["href"]
 				count += 1
 			count = 0
 			for i in soup.findAll("img"):
 				if str(i).find("_m.") != -1:
 					# The version of the image on Ffffound, in case the 
 					# original no longer exists:
-					images[count]["backup"] = str(i).split("src=\"")[1].split("\"")[0]
+					page_images[count]["backup_url"] = str(i).split("src=\"")[1].split("\"")[0]
 					count += 1
-			for i in images:
+			for i in page_images:
 				if os.path.exists(i["filepath"]):
 					# We already have a file with this name.
 					# Make a unique version by adding the time to it.
@@ -94,32 +101,38 @@ def main(user):
 					i["filepath"] = new_filepath
 
 				print "Downloading " + basename(i["image_url"]),
+
 				try:
-					urllib.urlretrieve(i["image_url"], i["filepath"])
+					r = requests.get(i['image_url'])
 					print "... done."
+					with open(i["filepath"], 'wb') as f:
+						f.write(r.content)
 					if not imghdr.what(i["filepath"]) in ["gif", "jpeg", "png", None]:
 						print "... unfortunately, it seems to be a bad image.\nDownloading backup",
 						try:
-							urllib.urlretrieve(i["backup"], i["filepath"])
+							r = requests.get(i['backup_url'])
+							with open(i["filepath"], 'wb') as f:
+								f.write(r.content)
 							print "... which seems to have worked."
-						except:
+						except requests.exceptions.RequestException as err:
 							print "... which also failed."
-					if os.path.getsize(i["filepath"]) < 5000:
-						raise
-				except:
+				except requests.exceptions.RequestException as e:
 					print "... failed. Downloading backup",
 					try:
-						urllib.urlretrieve(i["backup"], i["filepath"])
+						r = requests.get(i['backup_url'])
+						with open(i["filepath"], 'wb') as f:
+							f.write(r.content)
 						print "... which seems to have worked."
-					except:
+					except requests.exceptions.RequestException as e:
 						print "... which also failed."
 				print
 			page += 1
+			all_images += page_images
 		else:
 			print "Reached the end of the list, stopping."
 			break
 
-	if len(images) == 0:
+	if len(all_images) == 0:
 		sys.exit()
 
 	f = open(base_path+"styles.css", "w")
@@ -129,17 +142,35 @@ body {
 	color: #000000;
 	background-color: #ffffff;
 	font-size: 14px;
+	margin: 20px;
 }	
 h1 {
 	font-size: 40px;
+	font-weight: normal;
+	margin: 0 0 1em 0;
+}
+.image {
+	width: 520px;
+}
+.image img {
+	max-width: 100%;
+	height: auto;
+}
+.quote {
+	color: #909090;
+	font-size: 12px;
+}
+.description {
+	color: #909090;
 }
 """)
-	count = 1
-	for chunk in list(chunks(images, 25)):
+	for page_count, chunk in enumerate(chunks(all_images, 25)):
+		print("page "+str(page_count+1))
 
 		html = u""
 
 		for i in chunk:
+			print(i["page_url"])
 			if i["page_url"] == "":
 				page_link = i["page_title"]
 			else:
@@ -149,24 +180,25 @@ h1 {
 					})
 
 			html += u"""
-<div class="asset">
-	<div class="header">
-		<div class="title">
+<article>
+	<header>
+		<h2>
 			<span class="quote">Quoted from:</span>
-			%(page_link)s
-		</div>
-	</div>
+			<span class="title">%(page_link)s</span>
+		</h2>
+	</header>
 	<div class="description">
-		%(tidy_page_url)s
+		<span class="url">%(tidy_page_url)s</span>
 		<br>
-		%(save_time)s
+		<span class="time">%(save_time)s</span>
 	</div>
 	<div class="image">
 		<a href="%(img_url)s" title="See full-size version">
 			<img src="%(img_url)s" alt="%(page_title)s">
 		</a>
 	</div>
-</div>
+</article>
+
 """ % ({
 	"page_link": page_link,
 	"page_title": i["page_title"],
@@ -175,14 +207,14 @@ h1 {
 	"img_url": u"images/" + i["filename"],
 })
 
-		f = open(base_path+"page"+str(count)+".html", "w")
+		f = open(base_path+"page"+str(page_count+1)+".html", "w")
 
 		f.write(u"""<!doctype html>
 <html>
     <head>
         <meta charset="utf-8">
         <meta http-equiv="x-ua-compatible" content="ie=edge">
-        <title>FFFFOUND! (page %(count)s)</title>
+        <title>FFFFOUND! (page %(page_num)s)</title>
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <link rel="stylesheet" href="styles.css">
     </head>
@@ -191,18 +223,16 @@ h1 {
 	%(images)s
 	</body>
 </html>""" % ({
-	"count": count,
+	"page_num": page_count+1,
 	"user": user,
 	"images": html,
 }))
 
 		f.close()
 
-		count += 1
 
 
 
-	
 def chunks(l, n):
     """Yield successive n-sized chunks from l."""
     for i in xrange(0, len(l), n):
