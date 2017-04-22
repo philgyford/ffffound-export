@@ -231,7 +231,7 @@ if __name__ == '__main__':
 		if pages == "all":
 			print "Downloading all pictures from user '"+user+"'"
 		else:
-			print "Downloading " + str(pages) + " page(s) of picture from user '"+user+"'"
+			print "Downloading " + str(pages) + " page(s) of pictures from user '"+user+"'"
 		print
 
 		main(user, pages)
