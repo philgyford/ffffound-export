@@ -22,7 +22,7 @@
 
 
 
-import json, os, re, sys, requests, time, imghdr
+import json, math, os, re, sys, requests, time, imghdr
 from BeautifulSoup import BeautifulSoup
 from urlparse import urlparse
 from posixpath import basename, dirname
@@ -72,7 +72,6 @@ def main(user):
 						"filename": "backup_image",
 						"save_time": str(i).replace("<div class=\"description\">", "")[:19],
 					}
-				print(image)
 				page_images.append(image)
 
 			# Add the page_title and page_url to each image's data.
@@ -168,6 +167,8 @@ def main(user):
 
 	template = env.get_template('page.html')
 
+	total_pages = int(math.ceil(float(len(all_images)) / 25))
+
 	for page_count, page_images in enumerate(chunks(all_images, 25)):
 
 		context = {
@@ -175,6 +176,12 @@ def main(user):
 			'user': user,
 			'images': page_images,
 		}
+
+		if page_count < (total_pages - 1):
+			context['next_page'] = page_count + 2
+
+		if page_count > 0:
+			context['previous_page'] = page_count
 
 		f = open(base_path+"page"+str(page_count+1)+".html", "w")
 		f.write( template.render(context) )
