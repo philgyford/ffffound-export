@@ -13,6 +13,7 @@
 	Prerequisities:
 		Beautiful Soup (http://www.crummy.com/software/BeautifulSoup/)
 		requests (http://docs.python-requests.org)
+		jinja2 (http://jinja.pocoo.org)
 	
 	Usage:
 		python ffffind.py username
@@ -21,10 +22,12 @@
 
 
 
-import os, re, sys, requests, time, imghdr
+import json, os, re, sys, requests, time, imghdr
 from BeautifulSoup import BeautifulSoup
 from urlparse import urlparse
 from posixpath import basename, dirname
+from shutil import copyfile
+from jinja2 import Environment, PackageLoader, select_autoescape
 
 reload(sys)
 sys.setdefaultencoding('utf8')
@@ -37,9 +40,10 @@ def main(user):
 	page = 1
 	# Where we'll save the pages. Images will be in an "images" dir in here:
 	base_path = user+"/"
+	img_path = base_path+"images/"
 	while page <= 2:
-		page_images = []
 	# while True:
+		page_images = []
 		print "Capturing page "+str(page)+" ..."
 		print
 		r = requests.get("http://ffffound.com/home/"+user+"/found/?offset="+str(offset), headers=headers)
@@ -47,21 +51,31 @@ def main(user):
 		if "<div class=\"description\">" in s:
 			offset += 25
 			soup = BeautifulSoup(s)
+
+			# Make the initial data about one image and add to page_images.
 			for i in soup.findAll("div", { "class" : "description" }):
-				# The URL of the original image:
-				url = urlparse("http://" + str(i).split("<br />")[0].replace("<div class=\"description\">", ""))
-				# The date+time the image was safed on Ffffound:
-				try:
-					save_time = str(i).split("<br />")[1][:19]
-				except IndexError:
-					save_time = str(i).split("<br />")[0][:19]
-				page_images.append({
-					"image_url": url.geturl(),
-					# Where we'll save the file to:
-					"filename": basename(url.path),
-					"filepath": base_path+"images/"+basename(url.path),
-					"save_time": save_time
-				})
+				if '<br />' in str(i):
+					# There's a URL for the original image.
+					url = urlparse("http://" + str(i).split("<br />")[0].replace("<div class=\"description\">", ""))
+					image = {
+						"image_url": url.geturl(),
+						# Where we'll save the file to:
+						"filename": basename(url.path),
+						# The date+time the image was safed on Ffffound:
+						"save_time": str(i).split("<br />")[1][:19],
+					}
+				else:
+					# No URL for the original image.
+					image = {
+						"image_url": "",
+						# This is terrible, but it'll get uniqified below...
+						"filename": "backup_image",
+						"save_time": str(i).replace("<div class=\"description\">", "")[:19],
+					}
+				print(image)
+				page_images.append(image)
+
+			# Add the page_title and page_url to each image's data.
 			count = 0
 			for i in soup.findAll("div", { "class": "title" }):
 				try:
@@ -71,47 +85,49 @@ def main(user):
 					page_images[count]["page_title"] = str(i)\
 							.replace("<div class=\"title\">", u"")\
 							.replace("</div>", u"")\
-							.replace("<span class=\"quote\">Quoted from:</span>", u"")
-					print 'a: '+ page_images[count]["page_title"]
+							.replace("<span class=\"quote\">Quoted from:</span>", u"")\
+							.strip()
 					page_images[count]["page_url"] = u""
 				else:
 					# The <title> of the original page the image was on:
 					page_images[count]["page_title"] = a.string
-					print 'b: '+a.string
 					# The URL of the original page the image was on:
 					page_images[count]["page_url"] = a["href"]
 				count += 1
+
+			# Add the backup_url to each image's data.
 			count = 0
 			for i in soup.findAll("img"):
 				if str(i).find("_m.") != -1:
 					# The version of the image on Ffffound, in case the 
 					# original no longer exists:
-					page_images[count]["backup_url"] = str(i).split("src=\"")[1].split("\"")[0]
+					backup_url = str(i).split("src=\"")[1].split("\"")[0]
+					page_images[count]["backup_url"] = backup_url
 					count += 1
+
 			for i in page_images:
-				if os.path.exists(i["filepath"]):
+				if os.path.exists(img_path+i["filename"]):
 					# We already have a file with this name.
 					# Make a unique version by adding the time to it.
 					parts = os.path.splitext(i["filename"])
 					t = str(time.time()).replace(".", "")
 					new_filename = parts[0] + "_" + t + parts[1]
-					new_filepath = base_path+"images/"+new_filename
-					print i["filepath"] + " exists, using " + new_filepath + "."
+					print i["filename"] + " exists, using " + new_filename + "."
 					i["filename"] = new_filename
-					i["filepath"] = new_filepath
 
 				print "Downloading " + basename(i["image_url"]),
 
+				# I can only apologise.
 				try:
 					r = requests.get(i['image_url'])
 					print "... done."
-					with open(i["filepath"], 'wb') as f:
+					with open(img_path+i["filename"], 'wb') as f:
 						f.write(r.content)
-					if not imghdr.what(i["filepath"]) in ["gif", "jpeg", "png"]:
+					if not imghdr.what(img_path+i["filename"]) in ["gif", "jpeg", "png"]:
 						print "... unfortunately, it seems to be a bad image.\nDownloading backup",
 						try:
-							r = requests.get(i['backup_url'])
-							with open(i["filepath"], 'wb') as f:
+							r = requests.get(i["backup_url"])
+							with open(img_path+i["filename"], 'wb') as f:
 								f.write(r.content)
 							print "... which seems to have worked."
 						except requests.exceptions.RequestException as err:
@@ -120,7 +136,7 @@ def main(user):
 					print "... failed. Downloading backup",
 					try:
 						r = requests.get(i['backup_url'])
-						with open(i["filepath"], 'wb') as f:
+						with open(img_path+i["filename"], 'wb') as f:
 							f.write(r.content)
 						print "... which seems to have worked."
 					except requests.exceptions.RequestException as e:
@@ -135,119 +151,34 @@ def main(user):
 	if len(all_images) == 0:
 		sys.exit()
 
-	f = open(base_path+"styles.css", "w")
-	f.write(u"""
-body {
-	font-family: Georgia;
-	color: #000000;
-	background-color: #ffffff;
-	font-size: 14px;
-	margin: 20px 40px;
-}	
-a {
-	text-decoration: none;
-}
-h1 {
-	font-size: 40px;
-	font-weight: normal;
-	margin: 0 0 1em 0;
-}
+	# Save the data as JSON:
+	f = open(base_path+"images.json", "w")
+	f.write( json.dumps(all_images) )
+	f.close()
+	
+	# Copy the CSS file over...
+	copyfile('templates/styles.css', base_path+'styles.css')
 
-article {
-	margin-bottom: 50px;
-}
-h2 {
-	font-weight: normal;
-	font-size: inherit;
-	margin: 0;
-}
-.title {
-	font-size: 18px;
-}
-.quote {
-	color: #909090;
-	font-size: 12px;
-}
-.description {
-	color: #909090;
-	margin-bottom: 10px;
-}
-.image {
-	width: 520px;
-}
-.image img {
-	max-width: 100%;
-	height: auto;
-}
-""")
-	for page_count, chunk in enumerate(chunks(all_images, 25)):
-		print("page "+str(page_count+1))
+	# And write all the pages...
 
-		html = u""
+	env = Environment(
+		loader=PackageLoader('ffffind', 'templates'),
+		autoescape=select_autoescape(['html',])
+	)
 
-		for i in chunk:
-			print(i["page_url"])
-			if i["page_url"] == "":
-				page_link = i["page_title"]
-			else:
-				page_link = u'<a href="%(page_url)s">%(page_title)s</a>' % ({
-						"page_url": i["page_url"],
-						"page_title": i["page_title"],
-					})
+	template = env.get_template('page.html')
 
-			html += u"""
-<article>
-	<header>
-		<h2>
-			<span class="quote">Quoted from:</span>
-			<span class="title">%(page_link)s</span>
-		</h2>
-	</header>
-	<div class="description">
-		<span class="url">%(tidy_page_url)s</span>
-		<br>
-		<span class="time">%(save_time)s</span>
-	</div>
-	<div class="image">
-		<a href="%(img_url)s" title="See full-size version">
-			<img src="%(img_url)s" alt="%(page_title)s">
-		</a>
-	</div>
-</article>
+	for page_count, page_images in enumerate(chunks(all_images, 25)):
 
-""" % ({
-	"page_link": page_link,
-	"page_title": i["page_title"],
-	"tidy_page_url": re.sub(r'^https?://', u'', i["page_url"]),
-	"save_time": i["save_time"],
-	"img_url": u"images/" + i["filename"],
-})
+		context = {
+			'page_num': page_count+1,
+			'user': user,
+			'images': page_images,
+		}
 
 		f = open(base_path+"page"+str(page_count+1)+".html", "w")
-
-		f.write(u"""<!doctype html>
-<html>
-    <head>
-        <meta charset="utf-8">
-        <meta http-equiv="x-ua-compatible" content="ie=edge">
-        <title>FFFFOUND! (page %(page_num)s)</title>
-        <meta name="viewport" content="width=device-width, initial-scale=1">
-        <link rel="stylesheet" href="styles.css">
-    </head>
-    <body>
-	<h1>%(user)s&rsquo;s found</h1>
-	%(images)s
-	</body>
-</html>""" % ({
-	"page_num": page_count+1,
-	"user": user,
-	"images": html,
-}))
-
+		f.write( template.render(context) )
 		f.close()
-
-
-
 
 def chunks(l, n):
     """Yield successive n-sized chunks from l."""
