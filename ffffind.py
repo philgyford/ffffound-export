@@ -107,7 +107,7 @@ def main(user):
 					print "... done."
 					with open(i["filepath"], 'wb') as f:
 						f.write(r.content)
-					if not imghdr.what(i["filepath"]) in ["gif", "jpeg", "png", None]:
+					if not imghdr.what(i["filepath"]) in ["gif", "jpeg", "png"]:
 						print "... unfortunately, it seems to be a bad image.\nDownloading backup",
 						try:
 							r = requests.get(i['backup_url'])
