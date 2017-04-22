@@ -1,27 +1,5 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-"""
-
-	ash_ffffind.py
-	v1.1 (September 14, 2015)
-	by me@aaronhildebrandt.com
-	
-	Automatically downloads all images from ffffound saved by a specific user.
-	Will first try to download the image from the original source (to get the highest quality possible).
-	If that fails, it'll download the cached version from ffffound.
-	
-	Prerequisities:
-		Beautiful Soup (http://www.crummy.com/software/BeautifulSoup/)
-		requests (http://docs.python-requests.org)
-		jinja2 (http://jinja.pocoo.org)
-	
-	Usage:
-		python ffffind.py username
-
-"""
-
-
-
 import json, math, os, re, sys, requests, time, imghdr
 from BeautifulSoup import BeautifulSoup
 from urlparse import urlparse
