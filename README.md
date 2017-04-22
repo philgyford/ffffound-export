@@ -22,6 +22,14 @@ Replace `username` with your username on Ffffound, eg:
 
 It can take a long time to run, depending on how many images you ffffound and how slowly the servers respond.
 
+To test it with only a few pages you can pass in the number of pages to fetch.
+e.g.:
+
+	python ffffind.py philgyford 2
+
+That will fetch the first two pages of pictures for `philgyford`.
+
+
 ## Results
 
 If all goes well you will end up with a structure like this in the script's directory (but with your username):

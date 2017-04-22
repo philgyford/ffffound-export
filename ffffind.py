@@ -34,15 +34,18 @@ sys.setdefaultencoding('utf8')
 
 headers = {'user-agent': 'Mozilla/5.0 (Windows; U; Windows NT 5.1; it; rv:1.8.1.11) Gecko/20071127 Firefox/2.0.0.11'}
 
-def main(user):
+def main(user, pages="all"):
+	"""
+	user is a string, a ffffound.com username.
+	pages is either "all" or the number of pages to fetch.
+	"""
 	offset = 0
 	all_images = []
 	page = 1
 	# Where we'll save the pages. Images will be in an "images" dir in here:
 	base_path = user+"/"
 	img_path = base_path+"images/"
-	while page <= 2:
-	# while True:
+	while True:
 		page_images = []
 		print "Capturing page "+str(page)+" ..."
 		print
@@ -92,7 +95,9 @@ def main(user):
 					page_images[count]["page_title"] = a.string
 					# The URL of the original page the image was on:
 					page_images[count]["page_url"] = a["href"]
+
 				count += 1
+
 
 			# Add the backup_url to each image's data.
 			count = 0
@@ -141,8 +146,14 @@ def main(user):
 					except requests.exceptions.RequestException as e:
 						print "... which also failed."
 				print
-			page += 1
+
 			all_images += page_images
+
+			if pages != "all" and page == pages:
+				print "Reached page "+str(page)+", stopping."
+				break
+
+			page += 1
 		else:
 			print "Reached the end of the list, stopping."
 			break
@@ -212,6 +223,16 @@ if __name__ == '__main__':
 			print "Error creating directory."
 			sys.exit()
 		user = sys.argv[1]
-		print "Downloading all pictures from user '"+user+"'"
+
+		pages = "all"
+		if len(sys.argv) > 2:
+			pages = int(sys.argv[2])
+
+		if pages == "all":
+			print "Downloading all pictures from user '"+user+"'"
+		else:
+			print "Downloading " + str(pages) + " page(s) of picture from user '"+user+"'"
 		print
-		main(user)
+
+		main(user, pages)
+
