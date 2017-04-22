@@ -1,4 +1,4 @@
-# ffffind.py
+# ffffound-export
 
 A Python 2.7 script for downloading your [Ffffound](http://ffffound.com) images.
 
