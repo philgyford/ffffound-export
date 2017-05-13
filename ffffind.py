@@ -27,7 +27,14 @@ def main(user, pages="all"):
 		page_images = []
 		print "Capturing page "+str(page)+" ..."
 		print
-		r = requests.get("http://ffffound.com/home/"+user+"/found/?offset="+str(offset), headers=headers)
+
+		try:
+			r = requests.get("http://ffffound.com/home/"+user+"/found/?offset="+str(offset), headers=headers)
+			r.raise_for_status()
+		except requests.exceptions.HTTPError as err:
+			print "Request resulted in an error, quitting: %s" % err
+			break
+
 		s = r.text.replace(u"\xc2\xa0", u" ")
 		if "<div class=\"description\">" in s:
 			offset += 25
