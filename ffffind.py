@@ -81,7 +81,7 @@ def main(user, pages="all"):
 			count = 0
 			for i in soup.findAll("img"):
 				if str(i).find("_m.") != -1:
-					# The version of the image on Ffffound, in case the 
+					# The version of the image on Ffffound, in case the
 					# original no longer exists:
 					backup_url = str(i).split("src=\"")[1].split("\"")[0]
 					page_images[count]["backup_url"] = backup_url
@@ -143,7 +143,7 @@ def main(user, pages="all"):
 	f = open(base_path+"images.json", "w")
 	f.write( json.dumps(all_images, indent=2) )
 	f.close()
-	
+
 	# Copy the CSS file over...
 	copyfile('templates/styles.css', base_path+'styles.css')
 
@@ -213,4 +213,3 @@ if __name__ == '__main__':
 		print
 
 		main(user, pages)
-
